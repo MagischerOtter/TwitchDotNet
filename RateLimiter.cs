@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.RateLimiting;
@@ -8,7 +9,7 @@ internal class RateLimiter
 {
     private readonly TwitchClient _twitchClient;
     private readonly JsonSerializerOptions _jsonSerializerOptions;
-    private readonly SlidingWindowRateLimiter _limiter;
+    private readonly TokenBucketRateLimiter _limiter;
     private readonly HttpClient _httpClient = new HttpClient();
 
     internal RateLimiter(TwitchClient client)
@@ -21,12 +22,12 @@ internal class RateLimiter
 
         _limiter = new(new()
         {
-            PermitLimit = 800, //800
-            Window = TimeSpan.FromSeconds(60), //60
-            SegmentsPerWindow = 1, //10
+            TokenLimit = 800,
+            TokensPerPeriod = 80,
+            ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+            QueueLimit = 30,
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 30, //30
-            AutoReplenishment = true,
+            AutoReplenishment = true
         });
 
         _jsonSerializerOptions = new JsonSerializerOptions()
@@ -35,23 +36,60 @@ internal class RateLimiter
         };
     }
 
-    internal async Task<Response<T>> ExecuteAsync<T>(string route, CancellationToken cancellationToken)
+    internal async Task<Response<T>> ExecuteGetAsync<T>(string route, CancellationToken cancellationToken)
     {
-        using var x = await _limiter.AcquireAsync(1, cancellationToken);
-
-        if (!x.IsAcquired)
-            throw new HttpRequestException("Too many requests");
-
         HttpRequestMessage msg = new HttpRequestMessage(HttpMethod.Get, route);
         msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _twitchClient.Settings.AccessToken.Token);
 
-        HttpResponseMessage response = await _httpClient.SendAsync(msg, cancellationToken);
+        HttpResponseMessage response = await ExecuteAsync(msg, cancellationToken);
 
-        if (!response.IsSuccessStatusCode)
+        if(response.IsSuccessStatusCode)
         {
-            throw new Exception($"{response.StatusCode} - {response.ReasonPhrase}");
+            //TODO: AddLogging
+            return (await response.Content.ReadFromJsonAsync<Response<T>>(_jsonSerializerOptions, cancellationToken))!;
         }
 
-        return (await response.Content.ReadFromJsonAsync<Response<T>>(_jsonSerializerOptions, cancellationToken))!;
+        if (response.StatusCode is HttpStatusCode.TooManyRequests)
+        {
+            byte retries = 1;
+
+            do
+            {
+                //TODO: AddLogging
+
+                await Task.Delay(response.Headers.RetryAfter!.Delta!.Value);
+
+                response = await ExecuteAsync(msg, cancellationToken);
+
+            } while (!response.IsSuccessStatusCode && retries < 6);
+
+            if(response.IsSuccessStatusCode)
+            {
+                //TODO: AddLogging
+                return (await response.Content.ReadFromJsonAsync<Response<T>>(_jsonSerializerOptions, cancellationToken))!;
+            }
+
+            throw new Exception("failed more than 5 times");
+        }
+
+        throw new Exception($"[{response.StatusCode}] - {response.ReasonPhrase}");
+    }
+
+    private async Task<HttpResponseMessage> ExecuteAsync(HttpRequestMessage message, CancellationToken cancellationToken)
+    {
+        using var x = await _limiter.AcquireAsync(1, cancellationToken);
+
+        if (x.IsAcquired)
+        {
+            return await _httpClient.SendAsync(message, cancellationToken);
+        }
+
+        var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        if(x.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            response.Headers.RetryAfter = new(retryAfter);
+        }
+
+        return response;
     }
 }

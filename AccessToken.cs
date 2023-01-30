@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace TwitchDotNet;
 public class AccessToken
 {
-    public string Token { get; private set; }
+    public string Token { get; private set; } = "";
     private bool IsExpierd => _expiresDateTime < DateTime.Now;
 
     private DateTime _expiresDateTime = DateTime.MinValue;
@@ -38,7 +38,7 @@ public class AccessToken
 
     async Task<AccessTokenModel> GetNewAccessTokenAsync(TwitchClient twitchClient, CancellationToken cancellationToken)
     {
-        Console.WriteLine("Requesting new AccessToken");
+        //TODO: AddLogging
 
         var response = await _httpClient.PostAsync($"https://id.twitch.tv/oauth2/token?client_id={twitchClient.Settings.ClientId}&client_secret={twitchClient.Settings.ClientSecret}&grant_type=client_credentials", null, cancellationToken);
 
@@ -56,7 +56,7 @@ public class AccessToken
     class AccessTokenModel
     {
         [JsonPropertyName("access_token")]
-        public string Token { get; set; }
+        public string Token { get; set; } = "";
 
         [JsonPropertyName("expires_in")]
         public int ExpiresIn { get; set; }

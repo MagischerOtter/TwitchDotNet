@@ -33,7 +33,7 @@ public class TwitchClient
             sb.Append("user_id=").Append(id).Append('&');
         }
 
-        return await _limiter.ExecuteAsync<Stream>(sb.ToString(), _cancellationToken);
+        return await _limiter.ExecuteGetAsync<Stream>(sb.ToString(), _cancellationToken);
     }
 
     public async Task<Response<User>> GetUsersAsync(params string[] loginNames)
@@ -51,6 +51,6 @@ public class TwitchClient
             sb.Append("login=").Append(id).Append('&');
         }
 
-        return await _limiter.ExecuteAsync<User>(sb.ToString(), _cancellationToken);
+        return await _limiter.ExecuteGetAsync<User>(sb.ToString(), _cancellationToken);
     }
 }
