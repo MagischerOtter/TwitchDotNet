@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace TwitchDotNet;
 public class AccessToken
@@ -20,16 +21,21 @@ public class AccessToken
             if (!IsExpierd)
                 return;
 
+            twitchClient.Logger?.LogInformation("Acquiring new access token");
+
             var model = await GetNewAccessTokenAsync(twitchClient, cancellationToken);
 
             twitchClient.Settings.AccessToken.Token = model.Token;
             twitchClient.Settings.AccessToken.SetExpierDate(model.ExpiresIn - 60);
 
-            if (!IsExpierd)
-                return;
-
-            throw new Exception("Something went wrong getting a new AccessToken");
+            twitchClient.Logger?.LogInformation("Acquired new access token: {0}", string.Join(null, Enumerable.Repeat('*', Token.Length - 3)) + Token[^3..]);
         }
+        catch(Exception e)
+        {
+            twitchClient.Logger?.LogError(e, "Something went wrong getting a new AccessToken");
+            throw;
+        }
+
         finally
         {
             _lock.Release();
@@ -38,12 +44,10 @@ public class AccessToken
 
     async Task<AccessTokenModel> GetNewAccessTokenAsync(TwitchClient twitchClient, CancellationToken cancellationToken)
     {
-        //TODO: AddLogging
-
         var response = await _httpClient.PostAsync($"https://id.twitch.tv/oauth2/token?client_id={twitchClient.Settings.ClientId}&client_secret={twitchClient.Settings.ClientSecret}&grant_type=client_credentials", null, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
-            throw new Exception("Failed getting new AccessToken");
+            throw new HttpRequestException(response.ReasonPhrase, null, response.StatusCode);
 
         return (await response.Content.ReadFromJsonAsync<AccessTokenModel>(cancellationToken: cancellationToken))!;
     }

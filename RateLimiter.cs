@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.RateLimiting;
+using Microsoft.Extensions.Logging;
 
 namespace TwitchDotNet;
 internal class RateLimiter
@@ -36,40 +37,55 @@ internal class RateLimiter
         };
     }
 
-    internal async Task<Response<T>> ExecuteGetAsync<T>(string route, CancellationToken cancellationToken)
+    internal Task<Response<T>> ExecuteGetAsync<T>(string route, CancellationToken cancellationToken)
     {
-        HttpRequestMessage msg = new HttpRequestMessage(HttpMethod.Get, route);
+        try
+        {
+            return ExecuteAsync<T>(HttpMethod.Get, route, cancellationToken);
+        }
+        catch (Exception e)
+        {
+            _twitchClient.Logger?.LogError(e, null, Array.Empty<object>());
+            throw;
+        }
+    }
+
+    private async Task<Response<T>> ExecuteAsync<T>(HttpMethod httpMethod, string route, CancellationToken cancellationToken)
+    {
+        HttpRequestMessage msg = new HttpRequestMessage(httpMethod, route);
         msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _twitchClient.Settings.AccessToken.Token);
 
         HttpResponseMessage response = await ExecuteAsync(msg, cancellationToken);
 
         if(response.IsSuccessStatusCode)
         {
-            //TODO: AddLogging
             return (await response.Content.ReadFromJsonAsync<Response<T>>(_jsonSerializerOptions, cancellationToken))!;
         }
 
         if (response.StatusCode is HttpStatusCode.TooManyRequests)
         {
             byte retries = 1;
+            TimeSpan delay;
 
             do
             {
-                //TODO: AddLogging
+                delay = response.Headers.RetryAfter!.Delta!.Value;
 
-                await Task.Delay(response.Headers.RetryAfter!.Delta!.Value);
+                _twitchClient.Logger?.LogWarning("Hit ratelimit, trying again in {} sec", delay.TotalSeconds);
+
+                await Task.Delay(delay);
 
                 response = await ExecuteAsync(msg, cancellationToken);
 
-            } while (!response.IsSuccessStatusCode && retries < 6);
+            } while (!response.IsSuccessStatusCode && retries < 3);
 
             if(response.IsSuccessStatusCode)
             {
-                //TODO: AddLogging
+                _twitchClient.Logger?.LogInformation("Successful request after {} attempts", retries);
                 return (await response.Content.ReadFromJsonAsync<Response<T>>(_jsonSerializerOptions, cancellationToken))!;
             }
 
-            throw new Exception("failed more than 5 times");
+            throw new Exception("failed more than 2 times");
         }
 
         throw new Exception($"[{response.StatusCode}] - {response.ReasonPhrase}");
