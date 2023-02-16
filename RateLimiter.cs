@@ -25,7 +25,7 @@ internal class RateLimiter
         {
             TokenLimit = 800,
             TokensPerPeriod = 80,
-            ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+            ReplenishmentPeriod = TimeSpan.FromSeconds(6),
             QueueLimit = 30,
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
             AutoReplenishment = true
@@ -59,6 +59,8 @@ internal class RateLimiter
 
         if(response.IsSuccessStatusCode)
         {
+            var test = await response.Content.ReadAsStringAsync();
+
             return (await response.Content.ReadFromJsonAsync<Response<T>>(_jsonSerializerOptions, cancellationToken))!;
         }
 
@@ -71,7 +73,7 @@ internal class RateLimiter
             {
                 delay = response.Headers.RetryAfter!.Delta!.Value;
 
-                _twitchClient.Logger?.LogWarning("Hit ratelimit, trying again in {} sec", delay.TotalSeconds);
+                _twitchClient.Logger?.LogWarning("Hit ratelimit, trying again in {0} sec", delay.TotalSeconds);
 
                 await Task.Delay(delay);
 
@@ -81,7 +83,7 @@ internal class RateLimiter
 
             if(response.IsSuccessStatusCode)
             {
-                _twitchClient.Logger?.LogInformation("Successful request after {} attempts", retries);
+                _twitchClient.Logger?.LogInformation("Successful request after {0} attempts", retries);
                 return (await response.Content.ReadFromJsonAsync<Response<T>>(_jsonSerializerOptions, cancellationToken))!;
             }
 
