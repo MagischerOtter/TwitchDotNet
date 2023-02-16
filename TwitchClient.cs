@@ -40,19 +40,30 @@ public class TwitchClient
         return await _limiter.ExecuteGetAsync<Stream>(sb.ToString(), _cancellationToken);
     }
 
-    public async Task<Response<User>> GetUsersAsync(params string[] loginNames)
+    public async Task<Response<User>> GetUsersAsync(List<string>? loginNames = null, List<string>? ids = null)
     {
-        if (loginNames.Count() < 1)
-            throw new ArgumentOutOfRangeException(nameof(loginNames), loginNames, "Needs atleast 1 loginName");
+        if (loginNames?.Count() < 1 || ids?.Count < 1)
+            throw new ArgumentOutOfRangeException(nameof(loginNames), loginNames, "Needs atleast 1 entry");
 
         await Settings.AccessToken.ValidateAsync(this, _cancellationToken);
 
         StringBuilder sb = new StringBuilder();
         sb.Append("users?");
 
-        foreach (string id in loginNames)
+        if(loginNames is not null)
         {
-            sb.Append("login=").Append(id).Append('&');
+            foreach (string id in loginNames)
+            {
+                sb.Append("login=").Append(id).Append('&');
+            }
+        }
+
+        if(ids is not null)
+        {
+            foreach (string id in ids)
+            {
+                sb.Append("id=").Append(id).Append('&');
+            }
         }
 
         return await _limiter.ExecuteGetAsync<User>(sb.ToString(), _cancellationToken);
