@@ -8,9 +8,9 @@ public class TwitchClient
 
     private readonly RateLimiter _limiter;
     private readonly CancellationToken _cancellationToken;
-    internal ILogger Logger { get; }
+    internal ILogger? Logger { get; }
 
-    public TwitchClient(Settings settings, ILogger logger = null, CancellationToken cancellationToken = default)
+    public TwitchClient(Settings settings, ILogger? logger = null, CancellationToken cancellationToken = default)
     {
         Settings.Validate(settings);
 
