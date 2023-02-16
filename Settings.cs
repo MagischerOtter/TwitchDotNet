@@ -1,7 +1,7 @@
 ﻿namespace TwitchDotNet;
 public class Settings
 {
-    public Settings() 
+    public Settings()
     {
         AccessToken = new AccessToken();
     }
@@ -14,10 +14,10 @@ public class Settings
     {
         ArgumentNullException.ThrowIfNull(settings, nameof(settings));
 
-        if(string.IsNullOrWhiteSpace(settings.ClientId))
+        if (string.IsNullOrWhiteSpace(settings.ClientId))
             throw new ArgumentNullException(nameof(ClientId));
 
-        if(string.IsNullOrWhiteSpace(settings.ClientSecret))
+        if (string.IsNullOrWhiteSpace(settings.ClientSecret))
             throw new ArgumentNullException(nameof(ClientSecret));
     }
 }

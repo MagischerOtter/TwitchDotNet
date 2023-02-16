@@ -1,9 +1,9 @@
-﻿using System.Net;
+﻿using Microsoft.Extensions.Logging;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.RateLimiting;
-using Microsoft.Extensions.Logging;
 
 namespace TwitchDotNet;
 internal class RateLimiter
@@ -57,7 +57,7 @@ internal class RateLimiter
 
         HttpResponseMessage response = await ExecuteAsync(msg, cancellationToken);
 
-        if(response.IsSuccessStatusCode)
+        if (response.IsSuccessStatusCode)
         {
             var test = await response.Content.ReadAsStringAsync();
 
@@ -81,7 +81,7 @@ internal class RateLimiter
 
             } while (!response.IsSuccessStatusCode && retries < 3);
 
-            if(response.IsSuccessStatusCode)
+            if (response.IsSuccessStatusCode)
             {
                 _twitchClient.Logger?.LogInformation("Successful request after {0} attempts", retries);
                 return (await response.Content.ReadFromJsonAsync<Response<T>>(_jsonSerializerOptions, cancellationToken))!;
@@ -103,7 +103,7 @@ internal class RateLimiter
         }
 
         var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
-        if(x.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        if (x.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
         {
             response.Headers.RetryAfter = new(retryAfter);
         }

@@ -50,7 +50,7 @@ public class TwitchClient
         StringBuilder sb = new StringBuilder();
         sb.Append("users?");
 
-        if(loginNames is not null)
+        if (loginNames is not null)
         {
             foreach (string id in loginNames)
             {
@@ -58,7 +58,7 @@ public class TwitchClient
             }
         }
 
-        if(ids is not null)
+        if (ids is not null)
         {
             foreach (string id in ids)
             {

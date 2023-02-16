@@ -1,6 +1,6 @@
-﻿using System.Net.Http.Json;
+﻿using Microsoft.Extensions.Logging;
+using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Logging;
 
 namespace TwitchDotNet;
 public class AccessToken
@@ -30,7 +30,7 @@ public class AccessToken
 
             twitchClient.Logger?.LogInformation("Acquired new access token: {0}", string.Join(null, Enumerable.Repeat('*', Token.Length - 3)) + Token[^3..]);
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             twitchClient.Logger?.LogError(e, "Something went wrong getting a new AccessToken");
             throw;
