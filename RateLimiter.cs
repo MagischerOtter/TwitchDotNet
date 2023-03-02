@@ -46,7 +46,7 @@ internal class RateLimiter
         catch (Exception e)
         {
             _twitchClient.Logger?.LogError(e, null, Array.Empty<object>());
-            throw;
+            return Task.FromException<Response<T>>(e);
         }
     }
 
@@ -59,8 +59,6 @@ internal class RateLimiter
 
         if (response.IsSuccessStatusCode)
         {
-            var test = await response.Content.ReadAsStringAsync();
-
             return (await response.Content.ReadFromJsonAsync<Response<T>>(_jsonSerializerOptions, cancellationToken))!;
         }
 
