@@ -45,8 +45,8 @@ internal class RateLimiter
         }
         catch (Exception e)
         {
-            _twitchClient.Logger?.LogError(e, null, Array.Empty<object>());
-            return Task.FromException<Response<T>>(e);
+            _twitchClient.Logger?.LogError(e, "An error has occurred while calling Twitch API");
+            throw;
         }
     }
 
