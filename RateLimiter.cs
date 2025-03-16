@@ -20,6 +20,7 @@ internal class RateLimiter
         _httpClient.BaseAddress = new("https://api.twitch.tv/helix/");
         _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
         _httpClient.DefaultRequestHeaders.Add("Client-Id", _twitchClient.Settings.ClientId);
+        _httpClient.Timeout = TimeSpan.FromSeconds(15);
 
         _limiter = new(new()
         {
